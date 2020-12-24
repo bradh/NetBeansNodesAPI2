@@ -2,7 +2,7 @@ package org.myorg.myeditor;
 
 import java.awt.Image;
 import java.awt.event.ActionEvent;
-import java.time.ZonedDateTime;
+import java.beans.PropertyChangeEvent;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import static javax.swing.Action.NAME;
@@ -16,14 +16,16 @@ import org.openide.nodes.Children;
 import org.openide.nodes.PropertySupport;
 import org.openide.nodes.Sheet;
 import org.openide.util.ImageUtilities;
+import org.openide.util.WeakListeners;
 import org.openide.util.actions.Presenter;
 import org.openide.util.lookup.Lookups;
 
-public class EventNode extends AbstractNode {
+public class EventNode extends AbstractNode implements java.beans.PropertyChangeListener {
 
     public EventNode(Event obj) {
         super(Children.create(new EventChildFactory(), true), Lookups.singleton(obj));
         setDisplayName("Event " + obj.getIndex());
+        obj.addPropertyChangeListener(WeakListeners.propertyChange(this, obj));
     }
 
     public EventNode() {
@@ -61,23 +63,35 @@ public class EventNode extends AbstractNode {
     protected Sheet createSheet() {
         Sheet sheet = Sheet.createDefault();
         Sheet.Set set = Sheet.createPropertiesSet();
+        Sheet.Set set2 = Sheet.createPropertiesSet();
+        set2.setDisplayName("Other");
+        set2.setName("other");
         final Event obj = getLookup().lookup(Event.class);
         if (obj != null) {
-        try {
-            Property indexProp = new PropertySupport.Reflection(obj, Integer.class, "getIndex", null);
-            Property dateProp = new PropertySupport.Reflection(obj, String.class, "getDateAsString", null);
-            indexProp.setName("index");
-            dateProp.setName("date");
+            try {
+                Property indexProp = new PropertySupport.Reflection(obj, Integer.class, "getIndex", null);
+                Property dateProp = new PropertySupport.Reflection(obj, String.class, "getDateAsString", "setDateFromString");
+                indexProp.setName("index");
+                dateProp.setName("date");
 
-            set.put(indexProp);
-            set.put(dateProp);
-        } catch (NoSuchMethodException ex) {
-            ErrorManager.getDefault();
-        }
+                set.put(indexProp);
+                set2.put(dateProp);
+                set2.setValue("tabName", "Other Tab");
+            } catch (NoSuchMethodException ex) {
+                ErrorManager.getDefault();
+            }
         }
 
         sheet.put(set);
+        sheet.put(set2);
         return sheet;
+    }
+
+    @Override
+    public void propertyChange(PropertyChangeEvent evt) {
+        if ("date".equals(evt.getPropertyName())) {
+            this.fireDisplayNameChange(null, getDisplayName());
+        }
     }
 
     private class MyAction extends AbstractAction implements Presenter.Popup {
